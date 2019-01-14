@@ -1,0 +1,164 @@
+[PCOMM SCRIPT HEADER]
+LANGUAGE=VBSCRIPT
+DESCRIPTION=
+[PCOMM SCRIPT SOURCE]
+OPTION EXPLICIT
+autECLSession.SetConnectionByName(ThisSessionName)
+
+REM This line calls the macro subroutine
+subSub1_
+
+sub subSub1_()
+    Dim coverList, billDivision
+    Dim past, future, pHour, fHour
+    Dim custCode, custCodeOpt
+    Dim billCode, billCodeOpt
+    
+    'Settings area
+    'change GMM to FRD, EVS, GMA, ADS, NVS or whatever
+    billDivision = "GMM"
+    'add something in the quotes for coverage, example CNVSTT
+    coverList = ""
+    
+    'change 3 to how many days you want to look into the past
+    past = 1
+    'change 0000 to your normal start time, example 1300
+    pHour = "0000"
+    
+    'change 2 to how many days into the future you want to look
+    future = 2
+    'change 2359 to the last time you want to see, example 0800
+    fHour = "2359"
+
+    'change ptsirk to what you want to opt into or out of or just chagne it to ""
+    custCode = "ptsirk"
+    'needs to be "o" out, "i" in, or "" for nothing
+    custCodeOpt = "o"
+    
+    'change ptsirk to what you want to opt into or out of or just chagne it to ""
+    billCode = "ptsirk"
+    'needs to be "o" out, "i" in, or "" for nothing
+    billCodeOpt = "o"
+
+    Dim dataTest
+    Dim waitTime
+    waitTime = 20
+
+    Call waitNow_(waitTime)
+    dataTest = Trim(autECLSession.autECLPS.GetText(6, 23, 19))
+    If dataTest = "Operations Level 1" Then
+        autECLSession.autECLPS.SendKeys "[tab]"
+        autECLSession.autECLPS.SendKeys "" & 1
+        autECLSession.autECLPS.SendKeys "[enter]"
+    End If
+
+    Call waitNow_(waitTime)
+    dataTest = Trim(autECLSession.autECLPS.GetText(6, 15, 31))
+    If dataTest = "Order Entry, Update and Display" Then
+        autECLSession.autECLPS.SendKeys "[tab]"
+        autECLSession.autECLPS.SendKeys "" & 14
+        autECLSession.autECLPS.SendKeys "[enter]"
+    End If
+
+    Call waitNow_(waitTime)
+    dataTest = Trim(autECLSession.autECLPS.GetText(3, 1, 25))
+    '.GetText(row, colum, ammount to get)
+
+    If dataTest = "Accelerated Search Paths:" Then
+        'set start and end date
+        Dim initdate, enddate
+        Dim mPast, dPast, yPast
+        Dim mFut, dFut, yFut
+        mPast = Month(Now() - past)
+        dPast = Day(Now() - past)
+        yPast = Year(Now() - past)
+        mFut = Month(Now() + future)
+        dFut = Day(Now() + future)
+        yFut = Year(Now() + future)
+
+        If mPast < 10 Then
+            If dPast < 10 Then
+                initdate = "" & "0" & mPast & "0" & dPast & yPast - 2000
+            Else
+                initdate = "" & "0" & mPast & dPast & yPast - 2000
+            End If
+        Else
+            If dPast < 10 Then
+                initdate = "" & mPast & "0" & dPast & yPast - 2000
+            Else
+                initdate = "" & mPast & dPast & yPast - 2000
+            End If
+        End If
+
+        If mFut < 10 Then
+            If dFut < 10 Then
+                enddate = "" & "0" & mFut & "0" & dFut & yFut - 2000
+            Else
+                enddate = "" & "0" & mFut & dFut & yFut - 2000
+            End If
+        Else
+            If dFut < 10 Then
+                enddate = "" & mFut & "0" & dFut & yFut - 2000
+            Else
+                enddate = "" & mFut & dFut & yFut - 2000
+            End If
+        End If
+
+        '.SetCursorPos Long Row, Long Col
+		Call waitNow_(waitTime)
+        autECLSession.autECLPS.SetCursorPos 8, 26
+        autECLSession.autECLPS.SendKeys "" & billDivision
+
+        Call waitNow_(waitTime)
+        autECLSession.autECLPS.SetCursorPos 10, 72
+        autECLSession.autECLPS.SendKeys "n"
+
+        Call waitNow_(waitTime)
+        autECLSession.autECLPS.SetCursorPos 12, 19
+        autECLSession.autECLPS.SendKeys "" & initdate & "[tab]" & pHour & enddate & "[tab]" & fHour
+		
+        Dim seven
+        seven = 0
+        Do While seven < 6
+            autECLSession.autECLPS.SendKeys "[down]"
+            seven = seven + 1
+        Loop
+        autECLSession.autECLPS.SendKeys "[tab]"  & custCode & custCodeOpt & billCode & billCodeOpt
+        autECLSession.autECLPS.SetCursorPos 8, 26
+    Else
+        Dim count, done
+        done = 30
+        
+        count = 0
+        Do While count < done
+            'I am not sure how to catch everything and not even sure if it is possible
+            dataTest = Trim(autECLSession.autECLPS.GetText(22, 54, 9))
+            '"SCH.DISP:" should almost allways be on the ops/1/21 screen
+            If dataTest <> "SCH.DISP:" Then
+                Call waitNow_(waitTime)
+                autECLSession.autECLPS.SendKeys "[pf12]"
+            End If
+
+            Call waitNow_(waitTime)
+            autECLSession.autECLPS.SendKeys "[pf3]"
+
+            Call waitNow_(waitTime)
+            dataTest = Trim(autECLSession.autECLPS.GetText(6, 23, 19))
+            If dataTest = "Operations Level 1" Then
+                count = done
+            Else
+                count = count + 1
+            End If
+        Loop
+        Call subSub1_
+    End If
+
+End Sub
+
+Sub waitNow_(time)
+    autECLSession.autECLPS.Wait time
+    autECLSession.autECLOIA.WaitForAppAvailable
+    autECLSession.autECLOIA.WaitForInputReady
+End Sub
+
+

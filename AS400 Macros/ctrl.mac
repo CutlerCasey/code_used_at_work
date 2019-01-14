@@ -1,0 +1,234 @@
+[PCOMM SCRIPT HEADER]
+LANGUAGE=VBSCRIPT
+DESCRIPTION=
+[PCOMM SCRIPT SOURCE]
+OPTION EXPLICIT
+autECLSession.SetConnectionByName(ThisSessionName)
+
+REM This line calls the macro subroutine
+subSub1_
+
+REM Brandon simple loop that is in branCode_
+REM Casey has added and modified almost everything else to fit his needs and others.
+REM testing by Charles, Adam, Brandon, and Casey
+
+sub subSub1_() 'start, but also test for the correct screen
+	'0 is user, 1 is csr, 2 is arrived
+	dim msg : msg = "What is your short code, csr, macro2?  Please leave the comma's or things might fail on you, also do not have to change the last number."
+	dim arrVar(3)
+	arrVar(0) = "CUTLC" : arrVar(1) = "N" : arrVar(2) = "Y" : arrVar(3) = Len(arrVar(0))
+	'simple test to make sure you are on the right screen
+	if trim(autECLSession.autECLPS.GetText(4, 37, 21)) = "Position by date/time" Then
+		Call setVars_(arrVar, msg)
+		if trim(autECLSession.autECLPS.GetText(4, 22, 6)) = arrVar(0) Then
+			Call branCode_(arrVar)
+			end if
+	elseif trim(autECLSession.autECLPS.GetText(1, 2, 10)) = "QTRACS/400" And trim(autECLSession.autECLPS.GetText(1, 29, 23)) = "PAM Transportation Svcs" Then
+		Call waitForStuff_()
+		autECLSession.autECLPS.SendKeys "[enter]"
+		subSub1_()
+	else
+		autECLSession.autECLPS.SendKeys "[sys attn]" 'Esc key normally
+		Call waitForStuff_()
+		autECLSession.autECLPS.SendKeys "[sys attn]"
+		Call waitForStuff_()
+		autECLSession.autECLPS.SetCursorPos 21, 23
+		autECLSession.autECLOIA.WaitForInputReady
+		autECLSession.autECLPS.SendKeys "1" & "[enter]"
+		Call waitForStuff_()
+		subSub1_()
+		end if	
+end sub
+
+sub branCode_(arrVar) 'simple loop to update the mailbox
+	dim speed, num : speed = 1500 : num = 21
+	Do
+		Call waitForStuff_()
+		autECLSession.autECLPS.SendKeys "[enter]"
+
+		autECLSession.autECLPS.Wait speed
+		
+		if num > 10 Then
+			Call clearScreen_(arrVar)
+			num = 0
+			end if
+		num = num + 1
+	Loop
+end sub
+
+sub clearScreen_(arrVar) 'does what it says for messages not needed.
+	dim count, row, max : count = 0 : max = 0 : row = 11
+	
+	Call waitForStuff_()
+	
+	do while count < 10
+		row = 11 + count 'makes sure the row is the right down
+		if Trim(autECLSession.autECLPS.GetText(row, 6, 2)) = "Fr" Then 'will only test if you recieved it.
+			'since I mark things
+			if Trim(autECLSession.autECLPS.GetText(row, 35, 4)) <> "MARK" Then
+				if Trim(autECLSession.autECLPS.GetText(row, 41, 5)) = "Unit#" Then
+					Call repDo_(row, max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 9, 8)) = "OMCKCALL" And Trim(autECLSession.autECLPS.GetText(row, 41, 4)) = "UNIT" Then
+					Call repDo_(row, max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 9, 10)) = "OMETAALERT" And Trim(autECLSession.autECLPS.GetText(row, 41, 13)) = "*Load Remains" Then
+					Call repDo_(row, max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 9, 10)) = "OMETAALERT" And Trim(autECLSession.autECLPS.GetText(row, 45, 5)) = "Unit#" Then
+					Call repDo_(row, max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 41, 19)) = "*** DVIR REPORT ***" Then
+					Call repDo_(row, max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 41, 25)) = "*** CITATION RECEIVED ***" Then
+					Call repDo_(row, max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 46, 25)) = "***APPOINTMENTS UPDATE***" Then
+					Call repDo_(row, max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 41, 33)) = "QTRACS/400 Undeliverable Message!" Then
+					Call repDo_(row, max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 45, 30)) = "***Tractor PrePlanned Alert***" Then
+					Call prePlanAlert_(row, arrVar(0), arrVar(UBound(arrVar)), max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 41, 11)) = "*** UNIT#  " And Trim(autECLSession.autECLPS.GetText(row, 58, 21)) = "has been reassigned f" Then
+					Call reass_(row, arrVar(0), arrVar(UBound(arrVar)), max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 43, 24)) = "*** TIME OFF REQUEST ***" Then
+					Call timeOffRequest_(row, arrVar(0), max)
+				elseif Trim(autECLSession.autECLPS.GetText(row, 41, 33)) = "*** Confirmation Not Received ***" Then
+					Call confirmationNotRecieved_(row, max)
+				elseif arrVar(1) = "Y" Or arrVar(2) = "N" Then
+					if arrVar(1) = "Y" And arrVar(2) = "N" Then
+						Call csr_(row, max)
+						Call macroTwo_(row, max)
+					elseif arrVar(1) = "Y" Then
+						Call csr_(row, max)
+					else
+						Call macroTwo_(row, max)
+						end if
+				else
+					'if this happens loop, else is acutally required for some odd reason for the loop.
+					end if
+				end if
+			end if
+		count = count + 1
+	loop
+	
+	if max > 0 Then
+		count = 0
+		do while count < (max + 1) 'the max + 1, at least will run once and is needed to start over.
+			Call waitForStuff_()
+			autECLSession.autECLPS.SendKeys "[enter]"
+			count = count + 1
+		loop
+		
+		Call clearScreen_(arrVar)
+		end if
+end sub
+
+sub setVars_(arrVar, msg) 'setting varaibles for use through out.
+	dim i
+	dim info : info = Split(InputBox(msg, vbInformation, Join(arrVar, ",")), ",")
+	
+	do while i < UBound(info) + 1
+		if i = UBound(info) Then
+			arrVar(UBound(info)) = Len(info(0))
+		else
+			arrVar(i) = Ucase(info(i))
+			end if
+		i = i + 1
+	loop
+	
+end sub
+
+sub repDo_(row, max) 'clearScreen uses this to go down the list
+	Call sendFive_(row)
+	autECLSession.autECLPS.SendKeys "[tab]"
+	max = max + 1
+end sub
+
+sub csr_(row, max) 'no deliquents or PTAs
+	if Trim(autECLSession.autECLPS.GetText(row, 41, 27)) = "Delinquent Preplan Dispatch" Then
+		Call repDo_(row, max)
+	elseif Trim(autECLSession.autECLPS.GetText(row, 53, 17)) = "Tractor PTA Alert" Then
+		Call repDo_(row, max)
+	else
+		'for nothing but to end it
+		end if
+end sub
+
+sub macroTwo_(row, max) 'no arrived at shipper/consignee
+	if Trim(autECLSession.autECLPS.GetText(row, 52, 17)) = "ARRIVED CONSIGNEE" Then
+		Call repDo_(row, max)
+	elseif Trim(autECLSession.autECLPS.GetText(row, 52, 15)) = "ARRIVED SHIPPER" Then
+		Call repDo_(row, max)
+	else
+		'for nothing but to end it
+		end if
+end sub
+
+sub prePlanAlert_(row, user, num, max) 'removes prePlans that you add
+	Call sendFive_(row)
+	autECLSession.autECLPS.SendKeys "[enter]"
+	
+	Call waitForStuff_()
+	if Trim(autECLSession.autECLPS.GetText(9, 50, num)) <> user Then
+	'[pf12] might not work
+		autECLSession.autECLPS.SendKeys "[pf8]"
+	else
+		autECLSession.autECLPS.SendKeys "[enter]"
+		end if
+	max = max + 1
+end sub
+
+sub reass_(row, user, num, max) 'removes reasigned by you, but f8s it to keep it else.
+	Call sendFive_(row)
+	autECLSession.autECLPS.SendKeys "[enter]"
+	
+	Call waitForStuff_()
+	if Trim(autECLSession.autECLPS.GetText(8, 65, num)) <> user Then
+		autECLSession.autECLPS.SendKeys "[pf8]"
+	else
+		autECLSession.autECLPS.SendKeys "[enter]"
+		end if
+	max = max + 1
+end sub
+
+sub timeOffRequest_(row, user, max) 'sends a respone to the driver and then marks the message so you can send it to the day dm.
+	Call sendFive_(row)
+	autECLSession.autECLPS.SendKeys "[enter]"
+	Call waitForStuff_()
+	autECLSession.autECLPS.SendKeys "[pf2]"
+	
+	Call waitForStuff_()
+	autECLSession.autECLPS.SendKeys "[tab]" & "[tab]" & "Please, send Time Off and Layover Request"
+	autECLSession.autECLPS.SendKeys "[fldext]" & "Monday thru Friday"
+	autECLSession.autECLPS.SendKeys "[fldext]" & "0710 to 1500 Central"
+	autECLSession.autECLPS.SendKeys "[fldext]" & "[fldext]" & "This is so your day dm can see them and only they can take care of them. I will forwarded this also, but you should always check up with your day DM."
+	autECLSession.autECLPS.SendKeys "[fldext]" & "-" & user
+	autECLSession.autECLPS.SendKeys "[enter]"
+	
+	Call waitForStuff_()
+	autECLSession.autECLPS.SendKeys "[pf8]"
+	max = max + 1
+end sub
+
+sub confirmationNotRecieved_(row, max) 'does not care about warning 1, but marks warning 2
+	Call sendFive_(row)
+	autECLSession.autECLPS.SendKeys "[enter]"
+	
+	Call waitForStuff_()
+		
+	if Trim(autECLSession.autECLPS.GetText(9, 41, 16)) = "Warning number 1" Then
+		autECLSession.autECLPS.SendKeys "[enter]"
+	else
+		autECLSession.autECLPS.SendKeys "[pf8]"
+		max = max + 1
+		end if
+end sub
+
+sub sendFive_(row) 'save space
+	autECLSession.autECLPS.SetCursorPos row, 2
+	autECLSession.autECLOIA.WaitForInputReady
+	autECLSession.autECLPS.SendKeys 5
+end sub
+
+sub waitForStuff_() 'save space
+	autECLSession.autECLOIA.WaitForAppAvailable
+	autECLSession.autECLPS.WaitForAttrib 9, 28, "10", "3c", 3, 20
+	autECLSession.autECLPS.WaitForCursor 9, 29, 20
+	autECLSession.autECLOIA.WaitForInputReady
+end sub
