@@ -17,25 +17,28 @@ public const sheetname = "sheet2"
 
 public sub SingleClick()
 	dim x as string
-	if thisworkook.sheets(sheetname).range("a1") = "running" then
-		dim hold as pointapi
+	if ThisWorkBook.sheets(sheetname).range("a1") = "running" then
+		'dim hold as pointapi
 		
-		dim xRange, yRange as integer
-		xRange = RndInt(-10, 10)
-		yRange = RndInt(-10, 10)
-		while xRange = yRange
-			xRange = RndInt(-10, 10)
-			yRange = RndInt(-10, 10)
-		wend
+		'dim xRange, yRange as integer
+		'xRange = RndInt(-10, 10)
+		'yRange = RndInt(-10, 10)
+		'while xRange = yRange
+		'	xRange = RndInt(-10, 10)
+		'	yRange = RndInt(-10, 10)
+		'wend
 		
-		getcursorpos hold
-		setcursorpos hold.x_pos + xrange, hold.y_pos + yrange
-		application.wait dateadd("s", RndDbl(.25, .5), now)
-		mouse_event mouseeventf_leftdown, 0, 0, 0, 0
-		mouse_event mouseeventf_leftup, 0, 0, 0, 0
-		application.wait dateadd("s", RndDbl(.25, .5), now)
-		setcursorpos hold.x_pos, hold.y_pos
-
+		'getcursorpos hold
+		'setcursorpos hold.x_pos + xrange, hold.y_pos + yrange
+		'application.wait dateadd("s", RndDbl(.25, .5), now)
+		'mouse_event mouseeventf_leftdown, 0, 0, 0, 0
+		'mouse_event mouseeventf_leftup, 0, 0, 0, 0
+		'application.wait dateadd("s", RndDbl(.25, .5), now)
+		'setcursorpos hold.x_pos, hold.y_pos
+		
+		application.sendkeys "{CAPSLOCK}", 20
+		application.sendkeys "{CAPSLOCK}", 20
+		
 		call SleeperFunk
 	else
 		call StopAllMacro
